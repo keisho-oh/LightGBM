@@ -157,6 +157,30 @@ class Metadata {
   }
 
   /*!
+  * \brief Get theta1, if not exists, will return nullptr
+  * \return Pointer of theta1
+  */
+  inline const double* theta1() const {
+    if (!theta1_.empty()) {
+      return theta1_.data();
+    } else {
+      return nullptr;
+    }
+  }
+
+  /*!
+  * \brief Get theta2, if not exists, will return nullptr
+  * \return Pointer of weights
+  */
+  inline const double* theta2() const {
+    if (!theta2_.empty()) {
+      return theta2_.data();
+    } else {
+      return nullptr;
+    }
+  }
+
+  /*!
   * \brief Get data boundaries on queries, if not exists, will return nullptr
   *        we assume data will order by query,
   *        the interval of [query_boundaris[i], query_boundaris[i+1])

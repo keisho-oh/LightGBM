@@ -493,11 +493,19 @@ class GBDT : public GBDTBase {
   std::vector<score_t, CHAllocator<score_t>> gradients_;
   /*! \brief Second order derivative of training data */
   std::vector<score_t, CHAllocator<score_t>> hessians_;
+  /*! \brief theta1 */
+  std::vector<double, CHAllocator<double>> theta1_;
+  /*! \brief theta2 */
+  std::vector<double, CHAllocator<double>> theta2_;
 #else
   /*! \brief First order derivative of training data */
   std::vector<score_t, Common::AlignmentAllocator<score_t, kAlignedSize>> gradients_;
   /*! \brief Second order derivative of training data */
   std::vector<score_t, Common::AlignmentAllocator<score_t, kAlignedSize>> hessians_;
+  /*! \brief theta1 */
+  std::vector<double, Common::AlignmentAllocator<double, kAlignedSize>> theta1_;
+  /*! \brief theta2 */
+  std::vector<double, Common::AlignmentAllocator<double, kAlignedSize>> theta2_;
 #endif
 
   /*! \brief Store the indices of in-bag data */
