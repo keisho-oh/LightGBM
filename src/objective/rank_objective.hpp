@@ -50,12 +50,12 @@ class RankingObjective : public ObjectiveFunction {
   }
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
 #pragma omp parallel for schedule(guided)
     for (data_size_t i = 0; i < num_queries_; ++i) {
       const data_size_t start = query_boundaries_[i];
       const data_size_t cnt = query_boundaries_[i + 1] - query_boundaries_[i];
-      if(theta1 != nullptr) {
+      if(theta1_ != nullptr) {
         GetGradientsForOneQuery(i, cnt, label_ + start, score + start,
                                 gradients + start, hessians + start, theta1_ + start, theta2_ + start);
       } else {

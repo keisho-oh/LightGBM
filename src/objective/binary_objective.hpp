@@ -102,7 +102,7 @@ class BinaryLogloss: public ObjectiveFunction {
     label_weights_[1] *= scale_pos_weight_;
   }
 
-  void GetGradients(const double* score, score_t* gradients, score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+  void GetGradients(const double* score, score_t* gradients, score_t* hessians) const override {
     if (!need_train_) {
       return;
     }

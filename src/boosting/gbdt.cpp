@@ -177,7 +177,7 @@ void GBDT::Boosting() {
   // objective function will calculate gradients and hessians
   int64_t num_score = 0;
   objective_function_->
-    GetGradients(GetTrainingScore(&num_score), gradients_.data(), hessians_.data(), theta1_.data(), theta2_.data());
+    GetGradients(GetTrainingScore(&num_score), gradients_.data(), hessians_.data());
 }
 
 data_size_t GBDT::BaggingHelper(data_size_t start, data_size_t cnt, data_size_t* buffer) {

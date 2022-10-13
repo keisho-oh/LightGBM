@@ -125,7 +125,7 @@ class RegressionL2loss: public ObjectiveFunction {
   }
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -215,7 +215,7 @@ class RegressionL1loss: public RegressionL2loss {
   ~RegressionL1loss() {}
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -311,7 +311,7 @@ class RegressionHuberLoss: public RegressionL2loss {
   }
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -360,7 +360,7 @@ class RegressionFairLoss: public RegressionL2loss {
   ~RegressionFairLoss() {}
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -438,7 +438,7 @@ class RegressionPoissonLoss: public RegressionL2loss {
    *
    */
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -488,7 +488,7 @@ class RegressionQuantileloss : public RegressionL2loss {
   ~RegressionQuantileloss() {}
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -608,7 +608,7 @@ class RegressionMAPELOSS : public RegressionL1loss {
   }
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -685,7 +685,7 @@ class RegressionGammaLoss : public RegressionPoissonLoss {
   ~RegressionGammaLoss() {}
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
@@ -721,7 +721,7 @@ class RegressionTweedieLoss: public RegressionPoissonLoss {
   ~RegressionTweedieLoss() {}
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+                    score_t* hessians) const override {
     if (weights_ == nullptr) {
       #pragma omp parallel for schedule(static)
       for (data_size_t i = 0; i < num_data_; ++i) {
