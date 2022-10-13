@@ -46,13 +46,13 @@ class RankingObjective : public ObjectiveFunction {
   }
 
   void GetGradients(const double* score, score_t* gradients,
-                    score_t* hessians) const override {
+                    score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
 #pragma omp parallel for schedule(guided)
     for (data_size_t i = 0; i < num_queries_; ++i) {
       const data_size_t start = query_boundaries_[i];
       const data_size_t cnt = query_boundaries_[i + 1] - query_boundaries_[i];
       GetGradientsForOneQuery(i, cnt, label_ + start, score + start,
-                              gradients + start, hessians + start);
+                              gradients + start, hessians + start, theta1 + start, theta2 + start);
       if (weights_ != nullptr) {
         for (data_size_t j = 0; j < cnt; ++j) {
           gradients[start + j] =
@@ -67,7 +67,7 @@ class RankingObjective : public ObjectiveFunction {
   virtual void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
                                        const label_t* label,
                                        const double* score, score_t* lambdas,
-                                       score_t* hessians) const = 0;
+                                       score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const = 0;
 
   const char* GetName() const override = 0;
 
@@ -140,7 +140,7 @@ class LambdarankNDCG : public RankingObjective {
   inline void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
                                       const label_t* label, const double* score,
                                       score_t* lambdas,
-                                      score_t* hessians) const override {
+                                      score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     // get max DCG on current query
     const double inverse_max_dcg = inverse_max_dcgs_[query_id];
     // initialize with zero
@@ -301,7 +301,91 @@ class RankXENDCG : public RankingObjective {
   inline void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
                                       const label_t* label, const double* score,
                                       score_t* lambdas,
-                                      score_t* hessians) const override {
+                                      score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+    // Skip groups with too few items.
+    if (cnt <= 1) {
+      for (data_size_t i = 0; i < cnt; ++i) {
+        lambdas[i] = 0.0f;
+        hessians[i] = 0.0f;
+      }
+      return;
+    }
+
+    // Turn scores into a probability distribution using Softmax.
+    std::vector<double> rho(cnt, 0.0);
+    Common::Softmax(score, rho.data(), cnt);
+
+    // An auxiliary buffer of parameters used to form the ground-truth
+    // distribution and compute the loss.
+    std::vector<double> params(cnt);
+
+    double inv_denominator = 0;
+    for (data_size_t i = 0; i < cnt; ++i) {
+      params[i] = Phi(label[i], rands_[query_id].NextFloat());
+      inv_denominator += params[i];
+    }
+    // sum_labels will always be positive number
+    inv_denominator = 1. / std::max<double>(kEpsilon, inv_denominator);
+
+    // Approximate gradients and inverse Hessian.
+    // First order terms.
+    double sum_l1 = 0.0;
+    for (data_size_t i = 0; i < cnt; ++i) {
+      double term = -params[i] * inv_denominator + rho[i];
+      lambdas[i] = static_cast<score_t>(term);
+      // Params will now store terms needed to compute second-order terms.
+      params[i] = term / (1. - rho[i]);
+      sum_l1 += params[i];
+    }
+    // Second order terms.
+    double sum_l2 = 0.0;
+    for (data_size_t i = 0; i < cnt; ++i) {
+      double term = rho[i] * (sum_l1 - params[i]);
+      lambdas[i] += static_cast<score_t>(term);
+      // Params will now store terms needed to compute third-order terms.
+      params[i] = term / (1. - rho[i]);
+      sum_l2 += params[i];
+    }
+    for (data_size_t i = 0; i < cnt; ++i) {
+      lambdas[i] += static_cast<score_t>(rho[i] * (sum_l2 - params[i]));
+      hessians[i] = static_cast<score_t>(rho[i] * (1.0 - rho[i]));
+    }
+  }
+
+  double Phi(const label_t l, double g) const {
+    return Common::Pow(2, static_cast<int>(l)) - g;
+  }
+
+  const char* GetName() const override { return "rank_xendcg"; }
+
+ private:
+  mutable std::vector<Random> rands_;
+};
+
+
+/*!
+ * \brief Implementation of the ipw xendcg
+ */
+class IpwRankXENDCG : public RankingObjective {
+ public:
+  explicit IpwRankXENDCG(const Config& config) : RankingObjective(config) {}
+
+  explicit IpwRankXENDCG(const std::vector<std::string>& strs)
+      : RankingObjective(strs) {}
+
+  ~IpwRankXENDCG() {}
+
+  void Init(const Metadata& metadata, data_size_t num_data) override {
+    RankingObjective::Init(metadata, num_data);
+    for (data_size_t i = 0; i < num_queries_; ++i) {
+      rands_.emplace_back(seed_ + i);
+    }
+  }
+
+  inline void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
+                                      const label_t* label, const double* score,
+                                      score_t* lambdas,
+                                      score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     // Skip groups with too few items.
     if (cnt <= 1) {
       for (data_size_t i = 0; i < cnt; ++i) {

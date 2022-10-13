@@ -74,7 +74,7 @@ class CrossEntropy: public ObjectiveFunction {
     }
   }
 
-  void GetGradients(const double* score, score_t* gradients, score_t* hessians) const override {
+  void GetGradients(const double* score, score_t* gradients, score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     if (weights_ == nullptr) {
       // compute pointwise gradients and Hessians with implied unit weights
       #pragma omp parallel for schedule(static)
@@ -187,7 +187,7 @@ class CrossEntropyLambda: public ObjectiveFunction {
     }
   }
 
-  void GetGradients(const double* score, score_t* gradients, score_t* hessians) const override {
+  void GetGradients(const double* score, score_t* gradients, score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     if (weights_ == nullptr) {
       // compute pointwise gradients and Hessians with implied unit weights; exactly equivalent to CrossEntropy with unit weights
       #pragma omp parallel for schedule(static)

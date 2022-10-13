@@ -25,6 +25,8 @@ void Metadata::Init(const char* data_filename) {
   // for lambdarank, it needs query data for partition data in distributed learning
   LoadQueryBoundaries();
   LoadWeights();
+  LoadTheta1();
+  LoadTheta2();
   LoadQueryWeights();
   LoadInitialScore();
 }
@@ -388,6 +390,50 @@ void Metadata::LoadWeights() {
     weights_[i] = Common::AvoidInf(static_cast<label_t>(tmp_weight));
   }
   weight_load_from_file_ = true;
+}
+
+void Metadata::LoadTheta1() {
+  num_theta1_ = 0;
+  std::string theta1_filename(data_filename_);
+  // default theta1 file name
+  theta1_filename.append(".theta1");
+  TextReader<size_t> reader(theta1_filename.c_str(), false);
+  reader.ReadAllLines();
+  if (reader.Lines().empty()) {
+    return;
+  }
+  Log::Info("Loading theta1...");
+  num_theta1_ = static_cast<data_size_t>(reader.Lines().size());
+  theta1_ = std::vector<double>(num_theta1_);
+  #pragma omp parallel for schedule(static)
+  for (data_size_t i = 0; i < num_theta1_; ++i) {
+    double tmp_theta1 = 0.0f;
+    Common::Atof(reader.Lines()[i].c_str(), &tmp_theta1);
+    theta1_[i] = Common::AvoidInf(static_cast<label_t>(tmp_theta1));
+  }
+  theta1_load_from_file_ = true;
+}
+
+void Metadata::LoadTheta2() {
+  num_theta2_ = 0;
+  std::string theta2_filename(data_filename_);
+  // default theta2 file name
+  theta2_filename.append(".theta2");
+  TextReader<size_t> reader(theta2_filename.c_str(), false);
+  reader.ReadAllLines();
+  if (reader.Lines().empty()) {
+    return;
+  }
+  Log::Info("Loading theta2...");
+  num_theta2_ = static_cast<data_size_t>(reader.Lines().size());
+  theta2_ = std::vector<double>(num_theta2_);
+  #pragma omp parallel for schedule(static)
+  for (data_size_t i = 0; i < num_theta2_; ++i) {
+    double tmp_theta2 = 0.0f;
+    Common::Atof(reader.Lines()[i].c_str(), &tmp_theta2);
+    theta2_[i] = Common::AvoidInf(static_cast<label_t>(tmp_theta2));
+  }
+  theta2_load_from_file_ = true;
 }
 
 void Metadata::LoadInitialScore() {

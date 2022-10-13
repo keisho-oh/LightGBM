@@ -83,7 +83,7 @@ class MulticlassSoftmax: public ObjectiveFunction {
     }
   }
 
-  void GetGradients(const double* score, score_t* gradients, score_t* hessians) const override {
+  void GetGradients(const double* score, score_t* gradients, score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     if (weights_ == nullptr) {
       std::vector<double> rec;
       #pragma omp parallel for schedule(static) private(rec)
@@ -225,10 +225,10 @@ class MulticlassOVA: public ObjectiveFunction {
     }
   }
 
-  void GetGradients(const double* score, score_t* gradients, score_t* hessians) const override {
+  void GetGradients(const double* score, score_t* gradients, score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     for (int i = 0; i < num_class_; ++i) {
       int64_t offset = static_cast<int64_t>(num_data_) * i;
-      binary_loss_[i]->GetGradients(score + offset, gradients + offset, hessians + offset);
+      binary_loss_[i]->GetGradients(score + offset, gradients + offset, hessians + offset, theta1 + offset, theta2 + offset);
     }
   }
 
