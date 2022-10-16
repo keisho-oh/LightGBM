@@ -460,7 +460,7 @@ class IpwRankXENDCG : public RankingObjective {
     } else if(l == 1) {
       return 1.0 / th1 * (2.0 - g);
     } else {
-      return (1.0 / (th1 * th2)) * 2.0 * (1 - g) + (1.0 / th1) * (2.0 - g);
+      return (1.0 / (th1 * th2)) * 2.0 * (2.0 - g) + (1.0 / th1) * (2.0 - g);
     }
     return Common::Pow(2, static_cast<int>(l)) - g;
   }
