@@ -8,6 +8,7 @@
 #include "map_metric.hpp"
 #include "multiclass_metric.hpp"
 #include "rank_metric.hpp"
+#include "weighted_rank_metric.hpp"
 #include "regression_metric.hpp"
 #include "xentropy_metric.hpp"
 
@@ -40,6 +41,8 @@ Metric* Metric::CreateMetric(const std::string& type, const Config& config) {
     return new AucMuMetric(config);
   } else if (type == std::string("ndcg")) {
     return new NDCGMetric(config);
+  } else if (type == std::string("weighted_ndcg")) {
+    return new WeightedNDCGMetric(config);
   } else if (type == std::string("map")) {
     return new MapMetric(config);
   } else if (type == std::string("multi_logloss")) {

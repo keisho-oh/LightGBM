@@ -134,6 +134,90 @@ class DCGCalculator {
 };
 
 
+/*!
+* \brief Static class, used to calculate weighted-DCG score
+*/
+class WeightedDCGCalculator {
+ public:
+  static void DefaultEvalAt(std::vector<int>* eval_at);
+  static void DefaultLabelGain(std::vector<double>* label_gain);
+  /*!
+  * \brief Initial logic
+  * \param label_gain Gain for labels, default is 2^i - 1
+  */
+  static void Init(const std::vector<double>& label_gain);
+
+  static double CalGain(int l, double th1, double th2);
+
+  /*!
+  * \brief Calculate the DCG score at multi position
+  * \param ks The positions to evaluate
+  * \param label Pointer of label
+  * \param score Pointer of score
+  * \param num_data Number of data
+  * \param out Output result
+  */
+  static void CalDCG(const std::vector<data_size_t>& ks,
+    const label_t* label, const double* score,
+    const double* theta1, const double* theta2,
+    data_size_t num_data, std::vector<double>* out);
+
+  /*!
+  * \brief Calculate the Max DCG score at position k
+  * \param k The position want to eval at
+  * \param label Pointer of label
+  * \param num_data Number of data
+  * \return The max DCG score
+  */
+  static double CalMaxDCGAtK(data_size_t k,
+    const label_t* label,
+    const double* theta1, const double* theta2,
+    data_size_t num_data);
+
+
+  /*!
+  * \brief Check the metadata for NDCG and LambdaRank
+  * \param metadata Metadata
+  * \param num_queries Number of queries
+  */
+  static void CheckMetadata(const Metadata& metadata, data_size_t num_queries);
+
+  /*!
+  * \brief Check the label range for NDCG and LambdaRank
+  * \param label Pointer of label
+  * \param num_data Number of data
+  */
+  static void CheckLabel(const label_t* label, data_size_t num_data);
+
+  /*!
+  * \brief Calculate the Max DCG score at multi position
+  * \param ks The positions want to eval at
+  * \param label Pointer of label
+  * \param num_data Number of data
+  * \param out Output result
+  */
+  static void CalMaxDCG(const std::vector<data_size_t>& ks,
+    const label_t* label,
+    const double* theta1, const double* theta2,
+    data_size_t num_data, std::vector<double>* out);
+
+  /*!
+  * \brief Get discount score of position k
+  * \param k The position
+  * \return The discount of this position
+  */
+  inline static double GetDiscount(data_size_t k) { return discount_[k]; }
+
+ private:
+  /*! \brief store gains for different label */
+  static std::vector<double> label_gain_;
+  /*! \brief store discount score for different position */
+  static std::vector<double> discount_;
+  /*! \brief max position for eval */
+  static const data_size_t kMaxPosition;
+};
+
+
 }  // namespace LightGBM
 
 
