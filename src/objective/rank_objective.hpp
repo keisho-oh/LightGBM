@@ -32,11 +32,15 @@ class RankingObjective : public ObjectiveFunction {
   ~RankingObjective() {}
 
   void Init(const Metadata& metadata, data_size_t num_data) override {
+    Log::Info("Initializing...");
     num_data_ = num_data;
     // get label
     label_ = metadata.label();
     // get weights
     weights_ = metadata.weights();
+    // get theta
+    theta1_ = metadata.theta1();
+    theta2_ = metadata.theta2();
     // get boundries
     query_boundaries_ = metadata.query_boundaries();
     if (query_boundaries_ == nullptr) {
@@ -51,8 +55,13 @@ class RankingObjective : public ObjectiveFunction {
     for (data_size_t i = 0; i < num_queries_; ++i) {
       const data_size_t start = query_boundaries_[i];
       const data_size_t cnt = query_boundaries_[i + 1] - query_boundaries_[i];
-      GetGradientsForOneQuery(i, cnt, label_ + start, score + start,
-                              gradients + start, hessians + start);
+      if(theta1_ != nullptr) {
+        GetGradientsForOneQuery(i, cnt, label_ + start, score + start,
+                                gradients + start, hessians + start, theta1_ + start, theta2_ + start);
+      } else {
+        GetGradientsForOneQuery(i, cnt, label_ + start, score + start,
+                                gradients + start, hessians + start, nullptr, nullptr);
+      }
       if (weights_ != nullptr) {
         for (data_size_t j = 0; j < cnt; ++j) {
           gradients[start + j] =
@@ -67,7 +76,7 @@ class RankingObjective : public ObjectiveFunction {
   virtual void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
                                        const label_t* label,
                                        const double* score, score_t* lambdas,
-                                       score_t* hessians) const = 0;
+                                       score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const = 0;
 
   const char* GetName() const override = 0;
 
@@ -88,6 +97,10 @@ class RankingObjective : public ObjectiveFunction {
   const label_t* label_;
   /*! \brief Pointer of weights */
   const label_t* weights_;
+  /*! \brief Pointer of theta1 */
+  const double* theta1_;
+  /*! \brief Pointer of theta2 */
+  const double* theta2_;
   /*! \brief Query boundaries */
   const data_size_t* query_boundaries_;
 };
@@ -140,7 +153,7 @@ class LambdarankNDCG : public RankingObjective {
   inline void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
                                       const label_t* label, const double* score,
                                       score_t* lambdas,
-                                      score_t* hessians) const override {
+                                      score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     // get max DCG on current query
     const double inverse_max_dcg = inverse_max_dcgs_[query_id];
     // initialize with zero
@@ -301,7 +314,7 @@ class RankXENDCG : public RankingObjective {
   inline void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
                                       const label_t* label, const double* score,
                                       score_t* lambdas,
-                                      score_t* hessians) const override {
+                                      score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
     // Skip groups with too few items.
     if (cnt <= 1) {
       for (data_size_t i = 0; i < cnt; ++i) {
@@ -357,6 +370,102 @@ class RankXENDCG : public RankingObjective {
   }
 
   const char* GetName() const override { return "rank_xendcg"; }
+
+ private:
+  mutable std::vector<Random> rands_;
+};
+
+
+/*!
+ * \brief Implementation of the ipw xendcg
+ */
+class IpwRankXENDCG : public RankingObjective {
+ public:
+  explicit IpwRankXENDCG(const Config& config) : RankingObjective(config) {}
+
+  explicit IpwRankXENDCG(const std::vector<std::string>& strs)
+      : RankingObjective(strs) {}
+
+  ~IpwRankXENDCG() {}
+
+  void Init(const Metadata& metadata, data_size_t num_data) override {
+    RankingObjective::Init(metadata, num_data);
+    for (data_size_t i = 0; i < num_queries_; ++i) {
+      rands_.emplace_back(seed_ + i);
+    }
+  }
+
+  inline void GetGradientsForOneQuery(data_size_t query_id, data_size_t cnt,
+                                      const label_t* label, const double* score,
+                                      score_t* lambdas,
+                                      score_t* hessians, const double* theta1 = nullptr, const double* theta2 = nullptr) const override {
+    // Skip groups with too few items.
+    if (cnt <= 1) {
+      for (data_size_t i = 0; i < cnt; ++i) {
+        lambdas[i] = 0.0f;
+        hessians[i] = 0.0f;
+      }
+      return;
+    }
+
+    // Turn scores into a probability distribution using Softmax.
+    std::vector<double> rho(cnt, 0.0);
+    Common::Softmax(score, rho.data(), cnt);
+
+    // An auxiliary buffer of parameters used to form the ground-truth
+    // distribution and compute the loss.
+    std::vector<double> params(cnt);
+
+    double inv_denominator = 0;
+    for (data_size_t i = 0; i < cnt; ++i) {
+        if(theta1 != nullptr) {
+          params[i] = Phi(label[i], theta1[i], theta2[i], rands_[query_id].NextFloat());
+        } else {
+          params[i] = Phi(label[i], 1.0, 1.0, rands_[query_id].NextFloat());
+        }
+      inv_denominator += params[i];
+    }
+    // sum_labels will always be positive number
+    inv_denominator = 1. / std::max<double>(kEpsilon, inv_denominator);
+
+    // Approximate gradients and inverse Hessian.
+    // First order terms.
+    double sum_l1 = 0.0;
+    for (data_size_t i = 0; i < cnt; ++i) {
+      double term = -params[i] * inv_denominator + rho[i];
+      lambdas[i] = static_cast<score_t>(term);
+      // Params will now store terms needed to compute second-order terms.
+      params[i] = term / (1. - rho[i]);
+      sum_l1 += params[i];
+    }
+    // Second order terms.
+    double sum_l2 = 0.0;
+    for (data_size_t i = 0; i < cnt; ++i) {
+      double term = rho[i] * (sum_l1 - params[i]);
+      lambdas[i] += static_cast<score_t>(term);
+      // Params will now store terms needed to compute third-order terms.
+      params[i] = term / (1. - rho[i]);
+      sum_l2 += params[i];
+    }
+    for (data_size_t i = 0; i < cnt; ++i) {
+      lambdas[i] += static_cast<score_t>(rho[i] * (sum_l2 - params[i]));
+      hessians[i] = static_cast<score_t>(rho[i] * (1.0 - rho[i]));
+    }
+  }
+
+  double Phi(const label_t l, const double th1, const double th2, double g) const {
+    // calc weighted gain
+    if(l == 0) {
+      return 0;
+    } else if(l == 1) {
+      return 1.0 / th1 * (2.0 - g);
+    } else {
+      return (1.0 / (th1 * th2)) * 2.0 * (2.0 - g) + (1.0 / th1) * (2.0 - g);
+    }
+    return Common::Pow(2, static_cast<int>(l)) - g;
+  }
+
+  const char* GetName() const override { return "ipw_rank_xendcg"; }
 
  private:
   mutable std::vector<Random> rands_;

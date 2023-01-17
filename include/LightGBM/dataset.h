@@ -157,6 +157,30 @@ class Metadata {
   }
 
   /*!
+  * \brief Get theta1, if not exists, will return nullptr
+  * \return Pointer of theta1
+  */
+  inline const double* theta1() const {
+    if (!theta1_.empty()) {
+      return theta1_.data();
+    } else {
+      return nullptr;
+    }
+  }
+
+  /*!
+  * \brief Get theta2, if not exists, will return nullptr
+  * \return Pointer of weights
+  */
+  inline const double* theta2() const {
+    if (!theta2_.empty()) {
+      return theta2_.data();
+    } else {
+      return nullptr;
+    }
+  }
+
+  /*!
   * \brief Get data boundaries on queries, if not exists, will return nullptr
   *        we assume data will order by query,
   *        the interval of [query_boundaris[i], query_boundaris[i+1])
@@ -216,6 +240,10 @@ class Metadata {
   void LoadInitialScore();
   /*! \brief Load wights from file */
   void LoadWeights();
+  /*! \brief Load theta1 from file */
+  void LoadTheta1();
+  /*! \brief Load theta2 from file */
+  void LoadTheta2();
   /*! \brief Load query boundaries from file */
   void LoadQueryBoundaries();
   /*! \brief Load query wights */
@@ -226,10 +254,18 @@ class Metadata {
   data_size_t num_data_;
   /*! \brief Number of weights, used to check correct weight file */
   data_size_t num_weights_;
+  /*! \brief Number of theta1, used to check correct weight file */
+  data_size_t num_theta1_;
+  /*! \brief Number of theta2, used to check correct weight file */
+  data_size_t num_theta2_;
   /*! \brief Label data */
   std::vector<label_t> label_;
   /*! \brief Weights data */
   std::vector<label_t> weights_;
+  /*! \brief position bias data */
+  std::vector<double> theta1_;
+  /*! \brief position bias data */
+  std::vector<double> theta2_;
   /*! \brief Query boundaries */
   std::vector<data_size_t> query_boundaries_;
   /*! \brief Query weights */
@@ -245,6 +281,8 @@ class Metadata {
   /*! \brief mutex for threading safe call */
   std::mutex mutex_;
   bool weight_load_from_file_;
+  bool theta1_load_from_file_;
+  bool theta2_load_from_file_;
   bool query_load_from_file_;
   bool init_score_load_from_file_;
 };
